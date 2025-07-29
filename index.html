@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Simforge Cinematic Trailer Generator v3</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: #000;
+      color: #fff;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    #sceneDisplay {
+      height: 300px;
+      width: 100%;
+      background-image: url('https://images.unsplash.com/photo-1549921296-3a6b6cc3137e?auto=format&fit=crop&w=1200&q=80');
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2rem;
+      padding: 20px;
+      text-shadow: 2px 2px 8px #000;
+      border-bottom: 2px solid #222;
+    }
+    video { margin-top: 20px; width: 100%; max-width: 600px; display: none; }
+  </style>
+</head>
+<body class="p-6 text-center">
+  <h1 class="text-4xl font-bold text-yellow-400 mb-4">🎬 Simforge Cinematic v3</h1>
+
+  <textarea id="scriptInput" rows="6" class="w-full max-w-2xl mx-auto text-black p-4 rounded mt-6" placeholder="Type your epic trailer script here..."></textarea><br/>
+  <button onclick="startRecording()" class="mt-4 px-6 py-3 bg-green-600 rounded text-white font-bold">🎥 Start Trailer</button>
+  <button onclick="downloadVideo()" class="mt-4 px-6 py-3 bg-blue-600 rounded text-white font-bold">⬇️ Download Video</button>
+
+  <div id="sceneDisplay">🎬 Trailer scene will appear here...</div>
+
+  <audio id="bgMusic" loop>
+    <source src="https://cdn.pixabay.com/audio/2022/03/28/audio_4fda888e41.mp3" type="audio/mpeg">
+  </audio>
+
+  <video id="preview" controls></video>
+
+  <script>
+    let recorder, chunks = [], mediaStream;
+
+    async function startRecording() {
+      const scenes = document.getElementById("scriptInput").value.trim().split(/[.!?]\s+/).filter(t => t.length > 2);
+      if (scenes.length === 0) return alert("Please enter a trailer script.");
+      const sceneDiv = document.getElementById("sceneDisplay");
+      document.getElementById("bgMusic").play();
+
+      mediaStream = sceneDiv.captureStream(30);
+      recorder = new MediaRecorder(mediaStream);
+      chunks = [];
+
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "video/webm" });
+        const url = URL.createObjectURL(blob);
+        const video = document.getElementById("preview");
+        video.src = url;
+        video.style.display = "block";
+        video.play();
+      };
+
+      recorder.start();
+
+      let i = 0;
+      function nextScene() {
+        if (i >= scenes.length) {
+          recorder.stop();
+          sceneDiv.innerText = "✅ Trailer complete!";
+          document.getElementById("bgMusic").pause();
+          return;
+        }
+        const line = scenes[i];
+        sceneDiv.innerText = "🎬 " + line;
+        const utter = new SpeechSynthesisUtterance(line);
+        utter.pitch = 0.9;
+        utter.rate = 0.95;
+        utter.volume = 1;
+        utter.lang = "en-US";
+        const preferred = speechSynthesis.getVoices().find(v => v.name.includes("Google")) || null;
+        if (preferred) utter.voice = preferred;
+        utter.onend = () => setTimeout(() => {
+          i++;
+          nextScene();
+        }, 800);
+        speechSynthesis.speak(utter);
+      }
+
+      nextScene();
+    }
+
+    function downloadVideo() {
+      if (!chunks.length) return alert("No trailer recorded yet.");
+      const blob = new Blob(chunks, { type: "video/webm" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "cinematic_trailer.webm";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
